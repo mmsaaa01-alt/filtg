@@ -1,6 +1,8 @@
 # main.py
 import logging
 import asyncio
+import threading
+from flask import Flask
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from telegram.request import HTTPXRequest
 from config import BOT_TOKEN, ADMIN_CHAT_ID, BACKUP_CHAT_ID
@@ -16,6 +18,17 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
+# --- Flask Server for UptimeRobot ---
+app_flask = Flask(__name__)
+
+@app_flask.route("/")
+def home():
+    return "🤖 Ethiopian Student Speedrun Bot is alive and running!"
+
+def run_flask():
+    app_flask.run(host="0.0.0.0", port=8080)
+# ------------------------------------
+
 async def post_init(application):
     if BACKUP_CHAT_ID:
         ok = await restore_from_telegram(application.bot, BACKUP_CHAT_ID)
@@ -26,6 +39,11 @@ async def post_init(application):
         print("🗄️ Auto-backup loop started.")
 
 def main():
+    # Start Flask web server in a separate daemon thread
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    print("🌍 Flask web server started on port 8080...")
+
     request = HTTPXRequest(connect_timeout=30.0, read_timeout=30.0)
     app = ApplicationBuilder().token(BOT_TOKEN).request(request).build()
     app.post_init = post_init
